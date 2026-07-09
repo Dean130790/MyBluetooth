@@ -10,16 +10,22 @@ import CoreBluetooth
 @MainActor
 final class BluetoothManager: NSObject, BluetoothManagerProtocol {
     
+    // MARK: - Dependencies
     private var centralManager: CBCentralManager!
-    private var peripherals: [UUID: CBPeripheral] = [:]
+    
+    // MARK: - Internals
+    private var peripheralContexts: [DeviceID: PeripheralContext] = [:]
     private let eventEmitter = EventEmitter<BluetoothEvent>()
     
     
+    // MARK: - Init
     override init() {
         super.init()
         centralManager = CBCentralManager(delegate: self, queue: nil)
     }
     
+    
+    // MARK: - Scan
     func startScan() {
         guard centralManager.state == .poweredOn else { return }
         send(.scanStarted)
@@ -31,73 +37,81 @@ final class BluetoothManager: NSObject, BluetoothManagerProtocol {
         send(.scanStopped)
     }
     
-    func connect(deviceID: UUID) {
-        guard let peripheral = peripherals[deviceID] else { return }
-        send(.connectionStateChanged(peripheral.identifier, .connecting))
-        centralManager.connect(peripheral)
+    
+    // MARK: - Connect/Disconnect
+    func connect(deviceID: DeviceID) {
+        guard let peripheralContexts = peripheralContexts[deviceID] else { return }
+        send(.connectionStateChanged(peripheralContexts.peripheral.deviceID, .connecting))
+        centralManager.connect(peripheralContexts.peripheral)
     }
     
-    func disconnect(deviceID: UUID) {
-        guard let peripheral = peripherals[deviceID] else { return }
-        send(.connectionStateChanged(peripheral.identifier, .disconnecting))
+    func disconnect(deviceID: DeviceID) {
+        guard let peripheral = peripheralContexts[deviceID]?.peripheral else { return }
+        send(.connectionStateChanged(deviceID, .disconnecting))
         centralManager.cancelPeripheralConnection(peripheral)
     }
     
+    
+    // MARK: - GATT
+    func discoverServices(deviceID: DeviceID) {
+        guard let deviceContext = peripheralContexts[deviceID] else { return }
+        deviceContext.peripheral.discoverServices(nil)
+    }
+    
+    func discoverCharacteristics(serviceID: ServiceID, deviceID: DeviceID) {
+        guard let deviceContext = peripheralContexts[deviceID], let serviceContext = deviceContext.services[serviceID] else { return }
+        deviceContext.peripheral.discoverCharacteristics(nil, for: serviceContext.service)
+    }
+    
+    // MARK: - Read, Write and Notify
+    func read(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
+        guard let deviceContext = peripheralContexts[deviceID], let serviceContext = deviceContext.services[serviceID], let characteristic = serviceContext.characteristics[characteristicID] else { return }
+        if characteristic.properties.contains(.read) {
+            deviceContext.peripheral.readValue(for: characteristic)
+        }
+    }
+    
+    func write(_ data: Data, characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
+        guard let deviceContext = peripheralContexts[deviceID], let serviceContext = deviceContext.services[serviceID], let characteristic = serviceContext.characteristics[characteristicID] else { return }
+        if characteristic.properties.contains(.write) {
+            deviceContext.peripheral.writeValue(data, for: characteristic, type: .withResponse)
+        }
+    }
+    
+    func subscribe(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
+        setSubscribed(true, characteristicID: characteristicID, serviceID: serviceID, deviceID: deviceID)
+    }
+    
+    func unsubscribe(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
+        setSubscribed(false, characteristicID: characteristicID, serviceID: serviceID, deviceID: deviceID)
+    }
+    
+    
+    // MARK: - Events call backs
     func events(_ observer: @escaping @MainActor (BluetoothEvent) -> Void) {
         eventEmitter.observe(observer)
     }
     
-    private func send(_ event: BluetoothEvent) {
-        eventEmitter.send(event)
-    }
-}
-
-extension BluetoothManager: CBCentralManagerDelegate {
-    func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        let state: BluetoothState
-        switch central.state {
-        case .poweredOn:
-            state = .poweredOn
-        case .poweredOff:
-            state = .poweredOff
-        case .unauthorized:
-            state = .unauthorized
-        case .unsupported:
-            state = .unsupported
-        case .resetting:
-            state = .resetting
-        default:
-            state = .unknown
+    
+    // MARK: - Private helpers
+    private func setSubscribed(_ isSubscribed: Bool, characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
+        guard let deviceContext = peripheralContexts[deviceID], let serviceContext = deviceContext.services[serviceID], let characteristic = serviceContext.characteristics[characteristicID] else { return }
+        if characteristic.properties.contains(.notify) {
+            deviceContext.peripheral.setNotifyValue(isSubscribed, for: characteristic)
         }
-        
-        send(.stateChanged(state))
     }
     
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
-        let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
-        guard let name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-
-        peripherals[peripheral.identifier] = peripheral
-        let device = BluetoothDevice(
-            id: peripheral.identifier,
-            name: name,
-            rssi: RSSI.intValue,
-            advertisementData: AdvertisementData(dictionary: advertisementData),
-            connectionState: peripheral.state.covertToConnectionState
-        )
-        
-        send(.deviceDiscovered(device))
+    
+    // MARK: - Public helpers
+    func context(for deviceID: DeviceID) -> PeripheralContext? {
+        peripheralContexts[deviceID]
     }
     
-    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        send(.connectionStateChanged(peripheral.identifier, peripheral.state.covertToConnectionState))
+    func setContext(_ context: PeripheralContext, for deviceID: DeviceID) {
+        peripheralContexts[deviceID] = context
     }
     
-    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        send(.connectionStateChanged(peripheral.identifier, peripheral.state.covertToConnectionState))
-    }
-    
-    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        send(.connectionFailed(peripheral.identifier,.connectionFailed))
+    func send(_ event: BluetoothEvent) {
+        eventEmitter.send(event)
     }
 }

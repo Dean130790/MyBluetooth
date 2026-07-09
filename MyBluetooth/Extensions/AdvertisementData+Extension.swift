@@ -11,8 +11,8 @@ extension AdvertisementData {
     init(dictionary: [String: Any]) {
         self.localName = dictionary[CBAdvertisementDataLocalNameKey] as? String
         self.manufacturerData = dictionary[CBAdvertisementDataManufacturerDataKey] as? Data
-        //        self.serviceUUIDs = (dictionary[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])?
-        //            .map(\.uuid) ?? []
+        self.serviceUUIDs = (dictionary[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])?
+            .map { ServiceID(rawValue: $0.uuidString) } ?? []
         self.txPower = (dictionary[CBAdvertisementDataTxPowerLevelKey] as? NSNumber)?
             .intValue
         self.isConnectable = (dictionary[CBAdvertisementDataIsConnectable] as? NSNumber)?

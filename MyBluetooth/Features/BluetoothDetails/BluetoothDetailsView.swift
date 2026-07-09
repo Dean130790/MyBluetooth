@@ -9,19 +9,14 @@ import SwiftUI
 
 struct BluetoothDetailsView: View {
 
-    let deviceID: UUID
+    @Environment(\.dismiss) var dismiss
+
+    let deviceID: DeviceID
 
     let store: BluetoothViewStore
 
     var device: BluetoothDevice? {
-
-        store.state.myDevices.first(where: {
-            $0.id == deviceID
-        })
-        ??
-        store.state.otherDevices.first(where: {
-            $0.id == deviceID
-        })
+        store.state.myDevices.first(where: { $0.id == deviceID })
     }
 
     var body: some View {
@@ -44,7 +39,7 @@ private extension BluetoothDetailsView {
             )
             infoRow(
                 title: "Identifier",
-                value: device?.id.uuidString ?? "NA"
+                value: device?.id.rawValue ?? "NA"
             )
         }
     }
@@ -73,8 +68,8 @@ private extension BluetoothDetailsView {
     var forgetSection: some View {
         Section {
             Button(role: .destructive) {
-                guard let device = device else { return }
-                store.forget(device)
+                store.forget(deviceID)
+                dismiss()
             } label: {
                 HStack {
                     Spacer()

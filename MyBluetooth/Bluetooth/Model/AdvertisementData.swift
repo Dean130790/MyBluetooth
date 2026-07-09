@@ -10,7 +10,7 @@ import Foundation
 struct AdvertisementData: Hashable, Sendable {
     var localName: String?
     var manufacturerData: Data?
-    //var serviceUUIDs: [UUID]
+    var serviceUUIDs: [ServiceID]
     var txPower: Int?
     var isConnectable: Bool
 }

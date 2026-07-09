@@ -13,9 +13,6 @@ struct BluetoothViewState {
     var myDevices: [BluetoothDevice] = []
     var otherDevices: [BluetoothDevice] = []
     
-    var isLoading = false
-    var error: String?
-    
     var bluetoothEnabled: Bool {
         bluetoothState == .poweredOn
     }

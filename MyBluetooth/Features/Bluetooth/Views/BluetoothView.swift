@@ -48,8 +48,15 @@ private extension BluetoothView {
             } else {
                 ForEach(store.state.myDevices) { device in
                     BluetoothDeviceRow(bluetoothDeviceRowType: .myDevices, device: device, tapOnDevice: { device in
-                        guard device.connectionState == .disconnected else { return }
-                        store.connect(device)
+
+//                        guard device.connectionState == .disconnected else { return }
+//                        store.connect(device)
+
+                        guard device.connectionState == .connected else {
+                            return
+                        }
+//                        store.repository.read(characteristicID: <#T##CharacteristicID#>, serviceID: <#T##ServiceID#>, deviceID: <#T##DeviceID#>)
+
                     }, tapOnDeviceInfo: tapOnDeviceInfo)
                 }
             }
