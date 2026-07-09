@@ -1,5 +1,5 @@
 //
-//  BluetoothDetailsView.swift
+//  DetailsView.swift
 //  MyBluetooth
 //
 //  Created by Yatharth Wadekar on 04/07/26.
@@ -7,18 +7,18 @@
 
 import SwiftUI
 
-struct BluetoothDetailsView: View {
-
+struct DetailsView: View {
+    
     @Environment(\.dismiss) var dismiss
-
+    
     let deviceID: DeviceID
-
-    let store: BluetoothViewStore
-
+    
+    let store: AppStore
+    
     var device: BluetoothDevice? {
-        store.state.myDevices.first(where: { $0.id == deviceID })
+        store.state.device
     }
-
+    
     var body: some View {
         List {
             connectionSection
@@ -30,7 +30,7 @@ struct BluetoothDetailsView: View {
     }
 }
 
-private extension BluetoothDetailsView {
+private extension DetailsView {
     var connectionSection: some View {
         Section("CONNECTION") {
             infoRow(
@@ -45,7 +45,7 @@ private extension BluetoothDetailsView {
     }
 }
 
-private extension BluetoothDetailsView {
+private extension DetailsView {
     var deviceInformationSection: some View {
         Section("ABOUT") {
             infoRow(
@@ -64,11 +64,11 @@ private extension BluetoothDetailsView {
     }
 }
 
-private extension BluetoothDetailsView {
+private extension DetailsView {
     var forgetSection: some View {
         Section {
             Button(role: .destructive) {
-                store.forget(deviceID)
+                store.send(.detail(.forgetDevice(deviceID)))
                 dismiss()
             } label: {
                 HStack {
@@ -77,14 +77,14 @@ private extension BluetoothDetailsView {
                     Spacer()
                 }
             }
-
+            
         } footer: {
             Text("Removes this device from the app. The Bluetooth pairing stored by iOS is not removed.")
         }
     }
 }
 
-private extension BluetoothDetailsView {
+private extension DetailsView {
     @ViewBuilder
     func infoRow(title: String, value: String) -> some View {
         HStack {

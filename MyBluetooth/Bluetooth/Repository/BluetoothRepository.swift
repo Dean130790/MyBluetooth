@@ -49,7 +49,11 @@ final class BluetoothRepository: BluetoothRepositoryProtocol {
     func disconnect(deviceID: DeviceID) {
         manager.disconnect(deviceID: deviceID)
     }
-    
+
+    func forgetDevice(deviceID: DeviceID) {
+        manager.forgetDevice(deviceID: deviceID)
+    }
+
     
     // MARK: - Events call backs
     func events(_ observer: @escaping @MainActor (BluetoothEvent) -> Void) {

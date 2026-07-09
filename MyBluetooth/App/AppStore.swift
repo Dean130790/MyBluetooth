@@ -1,31 +1,65 @@
 //
-//  BluetoothViewStore.swift
+//  AppStore.swift
 //  MyBluetooth
 //
-//  Created by Yatharth Wadekar on 04/07/26.
+//  Created by Yatharth Wadekar on 09/07/26.
 //
 
 import Foundation
 
 @MainActor
 @Observable
-final class BluetoothViewStore {
-    
-    private(set) var state = BluetoothViewState()
+final class AppStore {
+
+    // MARK: - Internals
+    private(set) var state: AppState
+
+    // MARK: - Dependencies
     private let repository: BluetoothRepositoryProtocol
-    
-    
+
+
+    // MARK: - Init
     init(repository: BluetoothRepositoryProtocol) {
+        self.state = AppState()
         self.repository = repository
-        observeRepository()
+        send(.onAppear)
     }
-    
+
+
+    // MARK: - Actions
+    func send(_ action: AppAction) {
+        switch action {
+        case .onAppear:
+            observeRepository()
+        case .connect(let deviceID):
+            repository.connect(deviceID: deviceID)
+        case .detail(let detailAction):
+            switch detailAction {
+            case .onAppear(let deviceID):
+                if let deviceIndex = index(id: deviceID, devices: state.myDevices) {
+                    state.device = state.myDevices[deviceIndex]
+                }
+            case .forgetDevice(let deviceID):
+                repository.forgetDevice(deviceID: deviceID)
+            }
+        }
+    }
+
+    private func removeDevice(_ deviceID: DeviceID) {
+        guard let index = state.myDevices.firstIndex(where: { $0.id == deviceID }) else { return }
+        state.myDevices.remove(at: index)
+    }
+
+
+    // MARK: - Repository observer
     private func observeRepository() {
         repository.events() { [weak self] event in
             self?.handle(event)
         }
     }
-    
+
+
+    // MARK: - BluetoothEvent handler
     private func handle(_ event: BluetoothEvent) {
         switch event {
         case .stateChanged(let state):
@@ -41,9 +75,9 @@ final class BluetoothViewStore {
             state.isScanning = false
         case .deviceDiscovered(let device):
             if let index = index(id: device.id, devices: state.otherDevices) {
-                self.state.otherDevices[index] = device
+                state.otherDevices[index].update(from: device)
             } else if let index = index(id: device.id, devices: state.myDevices) {
-                self.state.myDevices[index] = device
+                state.myDevices[index].update(from: device)
             } else {
                 state.otherDevices.append(device)
             }
@@ -71,13 +105,15 @@ final class BluetoothViewStore {
                     state.otherDevices[index].connectionState = connectionState
                 }
             }
+        case .forgotDevice(let deviceID):
+            removeDevice(deviceID)
         case .connectionFailed(_, let error):
             print("===connectionFailed===")
             print("Error: \(error.localizedDescription)")
         case .servicesDiscovered(let deviceID, let services):
             if let index = index(id: deviceID, devices: state.otherDevices) {
                 state.otherDevices[index].services = services
-            } else if let index = index(id: deviceID, devices: state.otherDevices) {
+            } else if let index = index(id: deviceID, devices: state.myDevices) {
                 state.myDevices[index].services = services
             }
         case .servicesDiscoveryFailed(let deviceID, let error):
@@ -130,34 +166,15 @@ final class BluetoothViewStore {
             print("Error: \(error.localizedDescription)")
         }
     }
-    
+
+
+    // MARK: - Private helpers
     private func index(id: DeviceID, devices: [BluetoothDevice]) -> Int? {
         devices.firstIndex(where: { $0.id == id })
     }
-    
+
     private func index(id: ServiceID, services: [BluetoothService]) -> Int? {
         services.firstIndex(where: { $0.id == id })
     }
-    
-    
-    func startScan() {
-        repository.startScan()
-    }
-    
-    func stopScan() {
-        repository.stopScan()
-    }
-    
-    func connect(_ device: BluetoothDevice) {
-        repository.connect(deviceID: device.id)
-    }
-    
-    func disconnect(_ device: BluetoothDevice) {
-        repository.disconnect(deviceID: device.id)
-    }
-    
-    func forget(_ deviceID: DeviceID) {
-        guard let index = state.myDevices.firstIndex(where: { $0.id == deviceID }) else { return }
-        state.myDevices.remove(at: index)
-    }
 }
+

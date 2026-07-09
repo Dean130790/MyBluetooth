@@ -33,7 +33,7 @@ extension BluetoothManager: CBCentralManagerDelegate {
         guard let name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         setContext(PeripheralContext(peripheral: peripheral), for: peripheral.deviceID)
-        
+
         let device = BluetoothDevice(
             id: peripheral.deviceID,
             name: name,
@@ -52,7 +52,15 @@ extension BluetoothManager: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        send(.connectionStateChanged(peripheral.deviceID, peripheral.state.covertToConnectionState))
+        guard error == nil else  { return }
+
+        if isManualDisconnect {
+            isManualDisconnect = false
+            removeContext(for: peripheral.deviceID)
+            send(.forgotDevice(peripheral.deviceID))
+        } else {
+            send(.connectionStateChanged(peripheral.deviceID, peripheral.state.covertToConnectionState))
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {

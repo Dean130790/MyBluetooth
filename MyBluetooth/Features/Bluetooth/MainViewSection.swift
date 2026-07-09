@@ -1,5 +1,5 @@
 //
-//  BluetoothStatusSection.swift
+//  MainViewSection.swift
 //  MyBluetooth
 //
 //  Created by Yatharth Wadekar on 03/07/26.
@@ -7,10 +7,10 @@
 
 import SwiftUI
 
-struct BluetoothStatusSection: View {
-
-    let store: BluetoothViewStore
-
+struct MainViewSection: View {
+    
+    let store: AppStore
+    
     var body: some View {
         Section {
             HStack {
@@ -19,7 +19,7 @@ struct BluetoothStatusSection: View {
                 Text(store.state.bluetoothEnabled ? "Enabled" : "Disabled")
                     .foregroundStyle(store.state.bluetoothEnabled ? .green : .red)
             }
-
+            
             if !store.state.bluetoothEnabled {
                 Button {
                     openBluetoothSettings()
@@ -37,7 +37,7 @@ struct BluetoothStatusSection: View {
             Text("Bluetooth can only be enabled or disabled from the Settings app.")
         }
     }
-
+    
     private func openBluetoothSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString),
               UIApplication.shared.canOpenURL(url) else {

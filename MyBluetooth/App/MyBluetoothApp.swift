@@ -10,14 +10,12 @@ import SwiftUI
 @main
 struct MyBluetoothApp: App {
 
-    private let manager: BluetoothManagerProtocol
-    private let repository: BluetoothRepositoryProtocol
-    private let store: BluetoothViewStore
+    private let store: AppStore
 
     init() {
-        manager = BluetoothManager()
-        repository = BluetoothRepository(manager: manager)
-        store = BluetoothViewStore(repository: repository)
+        let manager: BluetoothManagerProtocol = BluetoothManager()
+        let repository: BluetoothRepositoryProtocol = BluetoothRepository(manager: manager)
+        store = AppStore(repository: repository)
     }
 
     var body: some Scene {

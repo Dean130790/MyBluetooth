@@ -1,5 +1,5 @@
 //
-//  MyBluetoothApp.swift
+//  MainView.swift
 //  BluetoothView
 //
 //  Created by Yatharth Wadekar on 03/07/26.
@@ -7,23 +7,23 @@
 
 import SwiftUI
 
-struct BluetoothView: View {
-    
-    @State private var store: BluetoothViewStore
-    
+struct MainView: View {
+
+    @State private var store: AppStore
+
     var tapOnDeviceInfo: (BluetoothDevice) -> Void
-    
-    
-    init(store: BluetoothViewStore, tapOnDeviceInfo: @escaping (BluetoothDevice) -> Void) {
+
+
+    init(store: AppStore, tapOnDeviceInfo: @escaping (BluetoothDevice) -> Void) {
         _store = State(initialValue: store)
         self.tapOnDeviceInfo = tapOnDeviceInfo
     }
-    
+
     var body: some View {
         NavigationStack {
             List {
-                BluetoothStatusSection(store: store)
-                
+                MainViewSection(store: store)
+
                 if store.state.bluetoothEnabled {
                     myDevicesSection
                     otherDevicesSection
@@ -37,7 +37,7 @@ struct BluetoothView: View {
     }
 }
 
-private extension BluetoothView {
+private extension MainView {
     var myDevicesSection: some View {
         Section("My Devices") {
             if store.state.myDevices.isEmpty {
@@ -47,24 +47,20 @@ private extension BluetoothView {
                 }
             } else {
                 ForEach(store.state.myDevices) { device in
-                    BluetoothDeviceRow(bluetoothDeviceRowType: .myDevices, device: device, tapOnDevice: { device in
-
-//                        guard device.connectionState == .disconnected else { return }
-//                        store.connect(device)
-
-                        guard device.connectionState == .connected else {
-                            return
-                        }
-//                        store.repository.read(characteristicID: <#T##CharacteristicID#>, serviceID: <#T##ServiceID#>, deviceID: <#T##DeviceID#>)
-
-                    }, tapOnDeviceInfo: tapOnDeviceInfo)
+                    MainViewCell(cellType: .myDevices, device: device, tapOnDevice: { device in
+                        guard device.connectionState == .disconnected else { return }
+                        store.send(.connect(device.id))
+                    }, tapOnDeviceInfo: { device in
+                        store.send(.detail(.onAppear(device.id)))
+                        tapOnDeviceInfo(device)
+                    })
                 }
             }
         }
     }
 }
 
-private extension BluetoothView {
+private extension MainView {
     var otherDevicesSection: some View {
         Section {
             if store.state.otherDevices.isEmpty {
@@ -73,8 +69,8 @@ private extension BluetoothView {
                     .padding(.vertical, 6)
             } else {
                 ForEach(store.state.otherDevices) { device in
-                    BluetoothDeviceRow(bluetoothDeviceRowType: .otherDevices, device: device) { device in
-                        store.connect(device)
+                    MainViewCell(cellType: .otherDevices, device: device) { device in
+                        store.send(.connect(device.id))
                     } tapOnDeviceInfo: { _ in }
                 }
             }

@@ -14,6 +14,7 @@ final class BluetoothManager: NSObject, BluetoothManagerProtocol {
     private var centralManager: CBCentralManager!
     
     // MARK: - Internals
+    var isManualDisconnect: Bool = false
     private var peripheralContexts: [DeviceID: PeripheralContext] = [:]
     private let eventEmitter = EventEmitter<BluetoothEvent>()
     
@@ -29,7 +30,7 @@ final class BluetoothManager: NSObject, BluetoothManagerProtocol {
     func startScan() {
         guard centralManager.state == .poweredOn else { return }
         send(.scanStarted)
-        centralManager.scanForPeripherals(withServices: nil,options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        centralManager.scanForPeripherals(withServices: nil,options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
     }
     
     func stopScan() {
@@ -50,7 +51,18 @@ final class BluetoothManager: NSObject, BluetoothManagerProtocol {
         send(.connectionStateChanged(deviceID, .disconnecting))
         centralManager.cancelPeripheralConnection(peripheral)
     }
-    
+
+    func forgetDevice(deviceID: DeviceID) {
+        guard let peripheral = peripheralContexts[deviceID]?.peripheral else { return }
+        if peripheral.state == .connected {
+            isManualDisconnect = true
+            disconnect(deviceID: deviceID)
+        } else {
+            peripheralContexts.removeValue(forKey: deviceID)
+            send(.forgotDevice(deviceID))
+        }
+    }
+
     
     // MARK: - GATT
     func discoverServices(deviceID: DeviceID) {
@@ -110,7 +122,11 @@ final class BluetoothManager: NSObject, BluetoothManagerProtocol {
     func setContext(_ context: PeripheralContext, for deviceID: DeviceID) {
         peripheralContexts[deviceID] = context
     }
-    
+
+    func removeContext(for deviceID: DeviceID) {
+        peripheralContexts.removeValue(forKey: deviceID)
+    }
+
     func send(_ event: BluetoothEvent) {
         eventEmitter.send(event)
     }

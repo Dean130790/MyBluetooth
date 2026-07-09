@@ -18,6 +18,7 @@ enum BluetoothEvent: Sendable {
     // MARK: - Connection
     case deviceDiscovered(BluetoothDevice)
     case connectionStateChanged(DeviceID, ConnectionState)
+    case forgotDevice(DeviceID)
     case connectionFailed(DeviceID, BluetoothError)
 
     // MARK: - GATT

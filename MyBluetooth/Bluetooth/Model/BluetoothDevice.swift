@@ -34,6 +34,15 @@ struct BluetoothDevice: Identifiable, Hashable, Sendable {
     }
 }
 
+extension BluetoothDevice {
+    mutating func update(from advertisement: BluetoothDevice) {
+        name = advertisement.name
+        rssi = advertisement.rssi
+        advertisementData = advertisement.advertisementData
+        lastSeen = .now
+    }
+}
+
 struct BluetoothService: Identifiable, Hashable, Sendable {
     let id: ServiceID
     let isPrimary: Bool

@@ -16,6 +16,7 @@ protocol BluetoothManagerProtocol: AnyObject {
     // MARK: - Connection
     func connect(deviceID: DeviceID)
     func disconnect(deviceID: DeviceID)
+    func forgetDevice(deviceID: DeviceID)
 
     // MARK: - GATT
     func discoverServices(deviceID: DeviceID)
