@@ -9,6 +9,7 @@ import Foundation
 
 enum AppAction {
     case onAppear
+    case onDisappear
     case connect(DeviceID)
     case detail(DetailAction)
 }

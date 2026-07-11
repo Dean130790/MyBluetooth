@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum BluetoothError: Error, LocalizedError {
+enum BluetoothError: Error, LocalizedError, Sendable {
     case bluetoothUnavailable
     case unauthorized
     case scanFailed

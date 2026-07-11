@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-enum ConnectionState: Sendable {
+enum ConnectionState: Equatable, Sendable {
     case disconnected
     case connecting
     case connected

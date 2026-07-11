@@ -26,5 +26,5 @@ protocol BluetoothRepositoryProtocol: Sendable {
     func unsubscribe(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID)
 
     // MARK: - Events
-    func events(_ observer: @escaping @MainActor (BluetoothEvent) -> Void)
+    func events() -> AsyncStream<BluetoothEvent>
 }

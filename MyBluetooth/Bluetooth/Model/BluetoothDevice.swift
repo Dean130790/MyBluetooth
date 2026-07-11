@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct BluetoothDevice: Identifiable, Hashable, Sendable {
+struct BluetoothDevice: Identifiable, Equatable, Hashable, Sendable {
     let id: DeviceID
     var name: String?
     var rssi: Int

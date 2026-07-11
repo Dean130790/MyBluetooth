@@ -7,88 +7,94 @@
 
 import Foundation
 
-@MainActor
-@Observable
-final class BluetoothRepository: BluetoothRepositoryProtocol {
-    
+actor BluetoothRepository: BluetoothRepositoryProtocol {
+
     // MARK: - Dependencies
     private let manager: BluetoothManagerProtocol
-    
+
     // MARK: - Internals
-    private let eventEmitter = EventEmitter<BluetoothEvent>()
-    
-    
+    private let eventEmitter: EventEmitter<BluetoothEvent>
+    private let primaryStream: AsyncStream<BluetoothEvent>
+
+
     // MARK: - Init
     init(manager: BluetoothManagerProtocol) {
         self.manager = manager
+
+        self.eventEmitter = EventEmitter<BluetoothEvent>()
+        let (stream, id, continuation) = eventEmitter.makeStream()
+        self.primaryStream = stream
+        Task { await eventEmitter.register(continuation, id: id) }
+
         observeManager()
     }
-    
-    func observeManager() {
+
+
+    // MARK: - Manager observer
+    nonisolated private func observeManager() {
         manager.events { [weak self] event in
-            self?.send(event)
+            Task { await self?.send(event) }
         }
     }
-    
-    
+
+    // MARK: - Events async stream
+    nonisolated func events() -> AsyncStream<BluetoothEvent> {
+        primaryStream
+    }
+
+    func send(_ event: BluetoothEvent) async {
+        await eventEmitter.send(event)
+    }
+
+
     // MARK: - Scan
-    func startScan() {
+    nonisolated func startScan() {
         manager.startScan()
     }
-    
-    func stopScan() {
+
+    nonisolated func stopScan() {
         manager.stopScan()
     }
-    
-    
+
+
     // MARK: - Connect/Disconnect
-    func connect(deviceID: DeviceID) {
+    nonisolated func connect(deviceID: DeviceID) {
         manager.connect(deviceID: deviceID)
     }
-    
-    func disconnect(deviceID: DeviceID) {
+
+    nonisolated func disconnect(deviceID: DeviceID) {
         manager.disconnect(deviceID: deviceID)
     }
 
-    func forgetDevice(deviceID: DeviceID) {
+    nonisolated func forgetDevice(deviceID: DeviceID) {
         manager.forgetDevice(deviceID: deviceID)
     }
 
-    
-    // MARK: - Events call backs
-    func events(_ observer: @escaping @MainActor (BluetoothEvent) -> Void) {
-        eventEmitter.observe(observer)
-    }
-    
-    private func send(_ event: BluetoothEvent) {
-        eventEmitter.send(event)
-    }
-    
-    
+
     // MARK: - Discover Services and Characteristics
-    func discoverServices(deviceID: DeviceID) {
+    nonisolated func discoverServices(deviceID: DeviceID) {
         manager.discoverServices(deviceID: deviceID)
     }
-    
-    func discoverCharacteristics(serviceID: ServiceID, deviceID: DeviceID) {
+
+    nonisolated func discoverCharacteristics(serviceID: ServiceID, deviceID: DeviceID) {
         manager.discoverCharacteristics(serviceID: serviceID, deviceID: deviceID)
     }
-    
-    
+
+
     // MARK: - Read, Write and Notify
-    func read(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
+    nonisolated func read(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
         manager.read(characteristicID: characteristicID, serviceID: serviceID, deviceID: deviceID)
     }
-    
-    func write(_ data: Data, characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
+
+    nonisolated func write(_ data: Data, characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
         manager.write(data, characteristicID: characteristicID, serviceID: serviceID, deviceID: deviceID)
     }
-    
-    func subscribe(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
+
+    nonisolated func subscribe(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
         manager.subscribe(characteristicID: characteristicID, serviceID: serviceID, deviceID: deviceID)
     }
-    
-    func unsubscribe(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
+
+    nonisolated func unsubscribe(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
         manager.unsubscribe(characteristicID: characteristicID, serviceID: serviceID, deviceID: deviceID)
     }
 }

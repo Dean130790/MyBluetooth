@@ -54,8 +54,9 @@ extension BluetoothManager: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         guard error == nil else  { return }
 
+        let isManualDisconnect = context(for: peripheral.deviceID)?.isManualDisconnect ?? false
+
         if isManualDisconnect {
-            isManualDisconnect = false
             removeContext(for: peripheral.deviceID)
             send(.forgotDevice(peripheral.deviceID))
         } else {

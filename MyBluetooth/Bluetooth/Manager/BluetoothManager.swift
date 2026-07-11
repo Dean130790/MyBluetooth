@@ -7,24 +7,33 @@
 
 import CoreBluetooth
 
-@MainActor
-final class BluetoothManager: NSObject, BluetoothManagerProtocol {
-    
+final class BluetoothManager: NSObject, BluetoothManagerProtocol, @unchecked Sendable {
+
     // MARK: - Dependencies
     private var centralManager: CBCentralManager!
     
     // MARK: - Internals
-    var isManualDisconnect: Bool = false
+    private let centralQueue = DispatchQueue(label: "com.app.ble.central", qos: .userInitiated)
+
     private var peripheralContexts: [DeviceID: PeripheralContext] = [:]
-    private let eventEmitter = EventEmitter<BluetoothEvent>()
-    
-    
+    private let eventBroadcaster = EventBroadcaster<BluetoothEvent>()
+
+
     // MARK: - Init
     override init() {
         super.init()
-        centralManager = CBCentralManager(delegate: self, queue: nil)
+        centralManager = CBCentralManager(delegate: self, queue: centralQueue)
     }
-    
+
+    // MARK: - Call backs
+    func events(_ observer: @escaping @Sendable (BluetoothEvent) -> Void) {
+        eventBroadcaster.observe(observer)
+    }
+
+    func send(_ event: BluetoothEvent) {
+        eventBroadcaster.send(event)
+    }
+
     
     // MARK: - Scan
     func startScan() {
@@ -53,9 +62,9 @@ final class BluetoothManager: NSObject, BluetoothManagerProtocol {
     }
 
     func forgetDevice(deviceID: DeviceID) {
-        guard let peripheral = peripheralContexts[deviceID]?.peripheral else { return }
-        if peripheral.state == .connected {
-            isManualDisconnect = true
+        guard let peripheralContext = peripheralContexts[deviceID] else { return }
+        if peripheralContext.peripheral.state == .connected {
+            peripheralContext.isManualDisconnect = true
             disconnect(deviceID: deviceID)
         } else {
             peripheralContexts.removeValue(forKey: deviceID)
@@ -97,13 +106,7 @@ final class BluetoothManager: NSObject, BluetoothManagerProtocol {
     func unsubscribe(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
         setSubscribed(false, characteristicID: characteristicID, serviceID: serviceID, deviceID: deviceID)
     }
-    
-    
-    // MARK: - Events call backs
-    func events(_ observer: @escaping @MainActor (BluetoothEvent) -> Void) {
-        eventEmitter.observe(observer)
-    }
-    
+
     
     // MARK: - Private helpers
     private func setSubscribed(_ isSubscribed: Bool, characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID) {
@@ -125,9 +128,5 @@ final class BluetoothManager: NSObject, BluetoothManagerProtocol {
 
     func removeContext(for deviceID: DeviceID) {
         peripheralContexts.removeValue(forKey: deviceID)
-    }
-
-    func send(_ event: BluetoothEvent) {
-        eventEmitter.send(event)
     }
 }

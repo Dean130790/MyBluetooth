@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum BluetoothState: Sendable {
+enum BluetoothState: Equatable, Sendable {
     case unknown
     case resetting
     case unsupported

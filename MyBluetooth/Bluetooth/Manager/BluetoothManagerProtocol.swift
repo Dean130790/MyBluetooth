@@ -7,8 +7,7 @@
 
 import Foundation
 
-@MainActor
-protocol BluetoothManagerProtocol: AnyObject {
+protocol BluetoothManagerProtocol: Sendable {
     // MARK: - Scan
     func startScan()
     func stopScan()
@@ -27,5 +26,5 @@ protocol BluetoothManagerProtocol: AnyObject {
     func unsubscribe(characteristicID: CharacteristicID, serviceID: ServiceID, deviceID: DeviceID)
 
     // MARK: - Events
-    func events(_ observer: @escaping @MainActor (BluetoothEvent) -> Void)
+    func events(_ observer: @escaping @Sendable (BluetoothEvent) -> Void)
 }

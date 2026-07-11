@@ -17,6 +17,8 @@ final class AppStore {
     // MARK: - Dependencies
     private let repository: BluetoothRepositoryProtocol
 
+    private var subscriptionTask: Task<Void, Never>?
+
 
     // MARK: - Init
     init(repository: BluetoothRepositoryProtocol) {
@@ -31,6 +33,9 @@ final class AppStore {
         switch action {
         case .onAppear:
             observeRepository()
+        case .onDisappear:
+            subscriptionTask?.cancel()
+            subscriptionTask = nil
         case .connect(let deviceID):
             repository.connect(deviceID: deviceID)
         case .detail(let detailAction):
@@ -53,14 +58,19 @@ final class AppStore {
 
     // MARK: - Repository observer
     private func observeRepository() {
-        repository.events() { [weak self] event in
-            self?.handle(event)
+        guard subscriptionTask == nil else { return }
+        subscriptionTask = Task { [repository] in
+            let stream = repository.events()
+            for await event in stream {
+                handle(event)
+            }
         }
     }
 
 
     // MARK: - BluetoothEvent handler
     private func handle(_ event: BluetoothEvent) {
+        
         switch event {
         case .stateChanged(let state):
             self.state.bluetoothState = state
