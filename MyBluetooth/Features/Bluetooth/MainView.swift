@@ -6,18 +6,14 @@
 //
 
 import SwiftUI
+import ComposableArchitecture
 
 struct MainView: View {
 
-    @State private var store: AppStore
+    var store: StoreOf<AppFeature>
 
     var tapOnDeviceInfo: (BluetoothDevice) -> Void
 
-
-    init(store: AppStore, tapOnDeviceInfo: @escaping (BluetoothDevice) -> Void) {
-        _store = State(initialValue: store)
-        self.tapOnDeviceInfo = tapOnDeviceInfo
-    }
 
     var body: some View {
         NavigationStack {
@@ -28,6 +24,9 @@ struct MainView: View {
                     myDevicesSection
                     otherDevicesSection
                 }
+            }
+            .onAppear{
+                store.send(.onAppear)
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Bluetooth")
@@ -51,7 +50,6 @@ private extension MainView {
                         guard device.connectionState == .disconnected else { return }
                         store.send(.connect(device.id))
                     }, tapOnDeviceInfo: { device in
-                        store.send(.detail(.onAppear(device.id)))
                         tapOnDeviceInfo(device)
                     })
                 }

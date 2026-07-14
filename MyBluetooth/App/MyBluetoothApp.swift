@@ -6,18 +6,19 @@
 //
 
 import SwiftUI
+import ComposableArchitecture
 
 @main
 struct MyBluetoothApp: App {
-
-    private let store: AppStore
-
+    
+    private let store: StoreOf<AppFeature>
+    
     init() {
-        let manager: BluetoothManagerProtocol = BluetoothManager()
-        let repository: BluetoothRepositoryProtocol = BluetoothRepository(manager: manager)
-        store = AppStore(repository: repository)
+        store = Store(initialState: AppFeature.State()) {
+            AppFeature()
+        }
     }
-
+    
     var body: some Scene {
         WindowGroup {
             RootView(store: store)

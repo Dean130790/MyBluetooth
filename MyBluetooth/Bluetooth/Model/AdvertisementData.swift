@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct AdvertisementData: Hashable, Sendable {
+struct AdvertisementData: Equatable, Hashable, Sendable {
     var localName: String?
     var manufacturerData: Data?
     var serviceUUIDs: [ServiceID]

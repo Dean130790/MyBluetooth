@@ -43,28 +43,28 @@ extension BluetoothDevice {
     }
 }
 
-struct BluetoothService: Identifiable, Hashable, Sendable {
+struct BluetoothService: Equatable, Identifiable, Hashable, Sendable {
     let id: ServiceID
     let isPrimary: Bool
     var characteristics: [BluetoothCharacteristic] = []
 }
 
-struct BluetoothCharacteristic: Identifiable, Hashable, Sendable {
+struct BluetoothCharacteristic: Equatable, Identifiable, Hashable, Sendable {
     let id: CharacteristicID
     let properties: BluetoothCharacteristicProperties
     var value: Data?
 }
 
 
-struct DeviceID: Hashable, Sendable {
+struct DeviceID: Equatable, Hashable, Sendable {
     let rawValue: String
 }
 
-struct ServiceID: Hashable, Sendable {
+struct ServiceID: Equatable, Hashable, Sendable {
     let rawValue: String
 }
 
-struct CharacteristicID: Hashable, Sendable {
+struct CharacteristicID: Equatable, Hashable, Sendable {
     let rawValue: String
 }
 
@@ -99,8 +99,8 @@ extension CharacteristicID {
 }
 
 
-public struct BluetoothCharacteristicProperties: OptionSet, Hashable, Sendable {
-    
+public struct BluetoothCharacteristicProperties: OptionSet, Equatable, Hashable, Sendable {
+
     public let rawValue: UInt
     
     public init(rawValue: UInt) {

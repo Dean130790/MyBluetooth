@@ -1,83 +1,76 @@
 //
-//  AppStore.swift
+//  AppFeature.swift
 //  MyBluetooth
 //
-//  Created by Yatharth Wadekar on 09/07/26.
+//  Created by Yatharth Wadekar on 14/07/26.
 //
 
+import ComposableArchitecture
 import Foundation
 
-@MainActor
-@Observable
-final class AppStore {
+@Reducer
+struct AppFeature {
 
-    // MARK: - Internals
-    private(set) var state: AppState
+    @ObservableState
+    struct State: Equatable {
+        var bluetoothState: BluetoothState = .unknown
+        var isScanning = false
+        var myDevices: [BluetoothDevice] = []
+        var otherDevices: [BluetoothDevice] = []
+        @Presents var detail: DetailFeature.State?
 
-    // MARK: - Dependencies
-    private let repository: BluetoothRepositoryProtocol
-
-    private var subscriptionTask: Task<Void, Never>?
-
-
-    // MARK: - Init
-    init(repository: BluetoothRepositoryProtocol) {
-        self.state = AppState()
-        self.repository = repository
-        send(.onAppear)
-    }
-
-
-    // MARK: - Actions
-    func send(_ action: AppAction) {
-        switch action {
-        case .onAppear:
-            observeRepository()
-        case .onDisappear:
-            subscriptionTask?.cancel()
-            subscriptionTask = nil
-        case .connect(let deviceID):
-            repository.connect(deviceID: deviceID)
-        case .detail(let detailAction):
-            switch detailAction {
-            case .onAppear(let deviceID):
-                if let deviceIndex = index(id: deviceID, devices: state.myDevices) {
-                    state.device = state.myDevices[deviceIndex]
-                }
-            case .forgetDevice(let deviceID):
-                repository.forgetDevice(deviceID: deviceID)
-            }
+        var bluetoothEnabled: Bool {
+            bluetoothState == .poweredOn
         }
     }
 
-    private func removeDevice(_ deviceID: DeviceID) {
-        guard let index = state.myDevices.firstIndex(where: { $0.id == deviceID }) else { return }
-        state.myDevices.remove(at: index)
+    enum Action {
+        case onAppear
+        case onDisappear
+        case bluetoothEvent(BluetoothEvent)
+        case connect(DeviceID)
+        case detail(PresentationAction<DetailFeature.Action>)
     }
 
+    @Dependency(\.bluetoothRepository) var repository
 
-    // MARK: - Repository observer
-    private func observeRepository() {
-        guard subscriptionTask == nil else { return }
-        subscriptionTask = Task { [repository] in
-            let stream = repository.events()
-            for await event in stream {
-                handle(event)
+    private enum CancelID { case subscription }
+
+
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+            switch action {
+            case .onAppear:
+                return .run { send in
+                    for await event in repository.events() {
+                        await send(.bluetoothEvent(event))
+                    }
+                }
+                .cancellable(id: CancelID.subscription)
+            case .bluetoothEvent(let event):
+                return handle(event, state: &state)
+            case .onDisappear:
+                return .cancel(id: CancelID.subscription)
+            case .connect(let deviceID):
+                return .run { send in repository.connect(deviceID: deviceID) }
+            case .detail:
+                return .none
             }
         }
     }
 
 
     // MARK: - BluetoothEvent handler
-    private func handle(_ event: BluetoothEvent) {
-        
+    private func handle(_ event: BluetoothEvent, state: inout State) -> Effect<Action> {
         switch event {
-        case .stateChanged(let state):
-            self.state.bluetoothState = state
-            if self.state.bluetoothEnabled {
-                self.repository.startScan()
-            } else {
-                self.repository.stopScan()
+        case .stateChanged(let bluetoothState):
+            state.bluetoothState = bluetoothState
+            return .run { _ in
+                if bluetoothState == .poweredOn {
+                    repository.startScan()
+                } else {
+                    repository.stopScan()
+                }
             }
         case .scanStarted:
             state.isScanning = true
@@ -116,7 +109,9 @@ final class AppStore {
                 }
             }
         case .forgotDevice(let deviceID):
-            removeDevice(deviceID)
+            if let index = state.myDevices.firstIndex(where: { $0.id == deviceID }) {
+                state.myDevices.remove(at: index)
+            }
         case .connectionFailed(_, let error):
             print("===connectionFailed===")
             print("Error: \(error.localizedDescription)")
@@ -175,6 +170,7 @@ final class AppStore {
             print("characteristicID: \(characteristicID)")
             print("Error: \(error.localizedDescription)")
         }
+        return .none
     }
 
 
@@ -187,4 +183,3 @@ final class AppStore {
         services.firstIndex(where: { $0.id == id })
     }
 }
-

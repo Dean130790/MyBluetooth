@@ -6,22 +6,24 @@
 //
 
 import SwiftUI
+import ComposableArchitecture
 
 struct RootView: View {
     
-    let store: AppStore
+    let store: StoreOf<AppFeature>
 
     @State private var router = AppRouter()
-    
+
     var body: some View {
         NavigationStack(path: $router.path) {
             MainView(store: store, tapOnDeviceInfo: { device in
-                router.push(.deviceDetails(id: device.id))
+                router.push(.deviceDetails(device: device))
             })
             .navigationDestination(for: AppRoute.self) { route in
                 switch route {
-                case .deviceDetails (let id):
-                    DetailsView(deviceID: id, store: store)
+                case .deviceDetails (let device):
+                    let store = Store(initialState: DetailFeature.State(device: device)) { DetailFeature() }
+                    DetailsView(store: store)
                 }
             }
         }

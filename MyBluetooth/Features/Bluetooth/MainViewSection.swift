@@ -6,11 +6,12 @@
 //
 
 import SwiftUI
+import ComposableArchitecture
 
 struct MainViewSection: View {
     
-    let store: AppStore
-    
+    var store: StoreOf<AppFeature>
+
     var body: some View {
         Section {
             HStack {

@@ -6,26 +6,22 @@
 //
 
 import SwiftUI
+import ComposableArchitecture
 
 struct DetailsView: View {
-    
+
+    var store: StoreOf<DetailFeature>
+
     @Environment(\.dismiss) var dismiss
-    
-    let deviceID: DeviceID
-    
-    let store: AppStore
-    
-    var device: BluetoothDevice? {
-        store.state.device
-    }
-    
+
+
     var body: some View {
         List {
             connectionSection
             deviceInformationSection
             forgetSection
         }
-        .navigationTitle(device?.name ?? "NA")
+        .navigationTitle(store.device.name ?? "NA")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -35,11 +31,11 @@ private extension DetailsView {
         Section("CONNECTION") {
             infoRow(
                 title: "Status",
-                value: device?.connectionState.title ?? "NA"
+                value: store.device.connectionState.title
             )
             infoRow(
                 title: "Identifier",
-                value: device?.id.rawValue ?? "NA"
+                value: store.device.id.rawValue
             )
         }
     }
@@ -50,15 +46,15 @@ private extension DetailsView {
         Section("ABOUT") {
             infoRow(
                 title: "Name",
-                value: device?.name ?? "Unknown"
+                value: store.device.name ?? "Unknown"
             )
             infoRow(
                 title: "RSSI",
-                value: "\(device?.rssi ?? 0) dBm"
+                value: "\(store.device.rssi) dBm"
             )
             infoRow(
                 title: "Bluetooth State",
-                value: device?.connectionState.title ?? "NA"
+                value: store.device.connectionState.title
             )
         }
     }
@@ -68,7 +64,7 @@ private extension DetailsView {
     var forgetSection: some View {
         Section {
             Button(role: .destructive) {
-                store.send(.detail(.forgetDevice(deviceID)))
+                store.send(.forgetDevice)
                 dismiss()
             } label: {
                 HStack {
@@ -77,7 +73,7 @@ private extension DetailsView {
                     Spacer()
                 }
             }
-            
+
         } footer: {
             Text("Removes this device from the app. The Bluetooth pairing stored by iOS is not removed.")
         }

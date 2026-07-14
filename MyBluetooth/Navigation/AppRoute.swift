@@ -8,5 +8,5 @@
 import Foundation
 
 enum AppRoute: Hashable {
-    case deviceDetails(id: DeviceID)
+    case deviceDetails(device: BluetoothDevice)
 }
