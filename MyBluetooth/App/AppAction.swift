@@ -12,6 +12,7 @@ enum AppAction {
     case onDisappear
     case connect(DeviceID)
     case detail(DetailAction)
+    case bluetoothEvent(BluetoothEvent)
 }
 
 enum DetailAction {

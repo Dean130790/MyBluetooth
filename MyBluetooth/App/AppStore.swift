@@ -17,7 +17,7 @@ final class AppStore {
     // MARK: - Dependencies
     private let repository: BluetoothRepositoryProtocol
 
-    private var subscriptionTask: Task<Void, Never>?
+    private var runningTasks: [EffectID: Task<Void, Never>] = [:]
 
 
     // MARK: - Init
@@ -30,14 +30,41 @@ final class AppStore {
 
     // MARK: - Actions
     func send(_ action: AppAction) {
+        let effect = reduce(&state, action)   // pure mutation happens here, synchronously
+        switch effect {
+        case .none:
+            break
+        case .run(let id, let operation):
+            guard runningTasks[id] == nil else { return }
+            runningTasks[id] = Task {
+                await operation { [weak self] resultAction in
+                    await self?.send(resultAction)
+                }
+            }
+        }
+    }
+
+    func cancel(id: EffectID) {
+        runningTasks[id]?.cancel()
+        runningTasks.removeValue(forKey: id)
+    }
+
+    func reduce(_ state: inout AppState, _ action: AppAction) -> Effect<AppAction> {
         switch action {
         case .onAppear:
-            observeRepository()
+            return .run(id: EffectID.bluetoothSubscription) { send in
+                for await event in self.repository.events() {
+                    await send(.bluetoothEvent(event))
+                }
+            }
         case .onDisappear:
-            subscriptionTask?.cancel()
-            subscriptionTask = nil
+            cancel(id: EffectID.bluetoothSubscription)
         case .connect(let deviceID):
-            repository.connect(deviceID: deviceID)
+            return .run(id: EffectID.bluetoothSubscription) { _ in
+                self.repository.connect(deviceID: deviceID)
+            }
+        case .bluetoothEvent(let event):
+            return handle(event, state: &state)
         case .detail(let detailAction):
             switch detailAction {
             case .onAppear(let deviceID):
@@ -45,39 +72,26 @@ final class AppStore {
                     state.device = state.myDevices[deviceIndex]
                 }
             case .forgetDevice(let deviceID):
-                repository.forgetDevice(deviceID: deviceID)
+                return .run(id: EffectID.bluetoothSubscription) { _ in
+                    self.repository.forgetDevice(deviceID: deviceID)
+                }
             }
         }
-    }
-
-    private func removeDevice(_ deviceID: DeviceID) {
-        guard let index = state.myDevices.firstIndex(where: { $0.id == deviceID }) else { return }
-        state.myDevices.remove(at: index)
-    }
-
-
-    // MARK: - Repository observer
-    private func observeRepository() {
-        guard subscriptionTask == nil else { return }
-        subscriptionTask = Task { [repository] in
-            let stream = repository.events()
-            for await event in stream {
-                handle(event)
-            }
-        }
+        return .none
     }
 
 
     // MARK: - BluetoothEvent handler
-    private func handle(_ event: BluetoothEvent) {
-        
+    private func handle(_ event: BluetoothEvent, state: inout AppState) -> Effect<AppAction> {
         switch event {
-        case .stateChanged(let state):
-            self.state.bluetoothState = state
-            if self.state.bluetoothEnabled {
-                self.repository.startScan()
-            } else {
-                self.repository.stopScan()
+        case .stateChanged(let bluetoothState):
+            state.bluetoothState = bluetoothState
+            return .run(id: EffectID.bluetoothSubscription) { _ in
+                if await self.state.bluetoothEnabled {
+                    self.repository.startScan()
+                } else {
+                    self.repository.stopScan()
+                }
             }
         case .scanStarted:
             state.isScanning = true
@@ -116,7 +130,9 @@ final class AppStore {
                 }
             }
         case .forgotDevice(let deviceID):
-            removeDevice(deviceID)
+            if let index = state.myDevices.firstIndex(where: { $0.id == deviceID }) {
+                state.myDevices.remove(at: index)
+            }
         case .connectionFailed(_, let error):
             print("===connectionFailed===")
             print("Error: \(error.localizedDescription)")
@@ -175,6 +191,7 @@ final class AppStore {
             print("characteristicID: \(characteristicID)")
             print("Error: \(error.localizedDescription)")
         }
+        return .none
     }
 
 
@@ -187,4 +204,3 @@ final class AppStore {
         services.firstIndex(where: { $0.id == id })
     }
 }
-
